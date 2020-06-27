@@ -1,0 +1,16 @@
+[
+{
+  "modid": "dc",
+  "name": "Dash Core",
+  "description": "",
+  "version": "0.0.1",
+  "mcversion": "1.12.2",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Dash"],
+  "credits": "The Forge and FML guys, for making this example. And Dash obvoiusely",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
