@@ -6,6 +6,7 @@ import net.minecraft.util.math.ChunkPos;
 public class NbtUtil {
 
     // region ChunkPos
+
     private static final String ChunkPosKey = "ChunkPos";
 
     public static void write(NBTTagCompound nbt, ChunkPos pos) {
