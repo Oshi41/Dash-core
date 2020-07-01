@@ -37,8 +37,8 @@ public class NbtStructureStart extends StructureStart {
         this.manager = manager;
         this.size = size;
 
-        for (int xPos = 0; xPos <= size.x; xPos++) {
-            for (int zPos = 0; zPos <= size.z; zPos++) {
+        for (int xPos = 0; xPos < size.x; xPos++) {
+            for (int zPos = 0; zPos < size.z; zPos++) {
                 ChunkPos currentChunkPos = new ChunkPos(xPos, zPos);
 
                 ResourceLocation chunkLocation = new ResourceLocation(folder.getResourceDomain(), folder.getResourcePath() + "/" + currentChunkPos.toString());

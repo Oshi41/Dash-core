@@ -3,6 +3,7 @@ package dashcore;
 import dashcore.gravity.capability.GravityCapability;
 import dashcore.gravity.capability.GravityStorage;
 import dashcore.gravity.capability.IGravity;
+import dashcore.registry.DashDimensions;
 import dashcore.registry.DashStructures;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.fml.common.Mod;
@@ -37,6 +38,7 @@ public class DashCore {
     public void preInit(FMLPreInitializationEvent event) {
         log = event.getModLog();
         DashStructures.register();
+        DashDimensions.register();
 
         CapabilityManager.INSTANCE.register(IGravity.class, new GravityStorage(), GravityCapability::new);
     }

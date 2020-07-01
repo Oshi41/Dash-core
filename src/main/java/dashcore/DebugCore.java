@@ -29,15 +29,19 @@ public class DebugCore {
     public static void afterLoading() {
         Map<String, WorldGenerator> rooms = new HashMap<String, WorldGenerator>() {
             {
-                put("Dramix", new DungeonComponentDramix());
-                put("Parasecta", new DungeonComponentParasecta());
+                put("dramix", new DungeonComponentDramix());
+                put("parasecta", new DungeonComponentParasecta());
             }
         };
 
-        File folder = new File("D:\\structures");
+        File folder = new File("D:\\IdeaProjects\\Dash-core\\src\\main\\resources\\assets\\dc\\structures");
 
         rooms.forEach((s, generator) -> {
             File roomFolder = new File(folder, s);
+
+            if (roomFolder.exists())
+                return;
+
             roomFolder.mkdirs();
 
             MockWorld world = new MockWorld();

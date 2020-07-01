@@ -8,7 +8,6 @@ import net.minecraft.nbt.*;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ObjectIntIdentityMap;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
 
@@ -20,7 +19,6 @@ import java.util.Iterator;
 import java.util.List;
 
 public class TemplateConverter {
-    public final ChunkPos chunkPos;
     public final BlockPos size;
     /**
      * blocks in the structure
@@ -39,14 +37,13 @@ public class TemplateConverter {
                 compound = tile.serializeNBT();
             }
 
-            blocks.add(new net.minecraft.world.gen.structure.template.Template.BlockInfo(pos, state, compound));
+            blocks.add(new net.minecraft.world.gen.structure.template.Template.BlockInfo(getFixedPosition(pos), state, compound));
         });
 
         chunk.getEntities().forEach((e) -> {
-            entities.add(new net.minecraft.world.gen.structure.template.Template.EntityInfo(Vec3d.ZERO, e.getPosition(), e.serializeNBT()));
+            entities.add(new net.minecraft.world.gen.structure.template.Template.EntityInfo(Vec3d.ZERO, getFixedPosition(e.getPosition()), e.serializeNBT()));
         });
 
-        chunkPos = chunk.getPos();
         StructureBoundingBox box = chunk.getSize();
 
         size = new BlockPos(box.getXSize(), box.getYSize(), box.getZSize());
@@ -131,6 +128,17 @@ public class TemplateConverter {
         }
 
         return nbttaglist;
+    }
+
+    /**
+     * Gets chunk position (0..15 on X/Z coords)
+     *
+     * @param pos - absolute position
+     * @return
+     */
+    private BlockPos getFixedPosition(BlockPos pos) {
+        int maxChunkSize = 16;
+        return new BlockPos(pos.getX() % maxChunkSize, pos.getY(), pos.getZ() % maxChunkSize);
     }
 
     static class BasicPalette implements Iterable<IBlockState> {

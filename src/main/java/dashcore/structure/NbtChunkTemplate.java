@@ -47,8 +47,10 @@ public class NbtChunkTemplate extends StructureComponentTemplate {
     protected void readStructureFromNBT(NBTTagCompound tagCompound, TemplateManager manager) {
         super.readStructureFromNBT(tagCompound, manager);
 
-        Template template = manager.getTemplate(null, new ResourceLocation(tagCompound.getString("Rs")));
-        setup(template, pos, placeSettings);
+        location = new ResourceLocation(tagCompound.getString("Rs"));
+
+        Template template = manager.getTemplate(null, location);
+        setup(template, templatePosition, placeSettings);
     }
 
     //endregion
