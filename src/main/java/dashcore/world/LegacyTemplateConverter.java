@@ -18,7 +18,7 @@ public class LegacyTemplateConverter {
         if (folder.mkdirs()) {
             if (folder.mkdir()) {
                 for (IChunkStorage storage : chunks.values()) {
-                    Template template = new Template(storage);
+                    TemplateConverter template = new TemplateConverter(storage);
                     ChunkPos pos = storage.getPos();
                     File file = new File(folder, String.format("[%s,%s].nbt", pos.x, pos.z));
                     template.writeToFile(file);

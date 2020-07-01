@@ -2,6 +2,7 @@ package dashcore.world;
 
 import dashcore.world.interfaces.IChunkStorage;
 import net.minecraft.block.Block;
+import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.tileentity.TileEntity;
@@ -13,7 +14,6 @@ import net.minecraft.world.WorldProvider;
 import net.minecraft.world.chunk.IChunkProvider;
 
 import javax.annotation.Nullable;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -60,7 +60,14 @@ public class MockWorld extends World {
             return false;
         }
 
-        provide(pos).add(state, pos);
+        IChunkStorage storage = provide(pos);
+        storage.add(state, pos);
+
+        if (state.getBlock() instanceof ITileEntityProvider) {
+            TileEntity tileEntity = state.getBlock().createTileEntity(this, state);
+            setTileEntity(pos, tileEntity);
+        }
+
         return true;
     }
 

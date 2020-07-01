@@ -2,7 +2,6 @@ package dashcore.gravity;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import dashcore.DashCore;
 import dashcore.gravity.capability.IGravity;
 import dashcore.gravity.event.GravityAffectedEvent;
 import dashcore.gravity.event.GravityChangedEvent;
@@ -56,13 +55,13 @@ public class GravityHandler {
         if (event.side != Side.SERVER)
             return;
 
-        // applying gravity
-        handleGravity(false);
-
         // recalculating entities gravity sources
         if (FMLCommonHandler.instance().getMinecraftServerInstance().getTickCounter() % delay == 0) {
             recalculateSources();
         }
+
+        // applying gravity
+        handleGravity(false);
     }
 
     @SubscribeEvent
@@ -83,13 +82,13 @@ public class GravityHandler {
         if (net.minecraft.client.Minecraft.getMinecraft().player == null)
             return;
 
-        // applying gravity
-        handleGravity(true);
-
         // recalculating entities gravity sources
         if (net.minecraft.client.Minecraft.getMinecraft().world.getTotalWorldTime() % delay == 0) {
             recalculateSources();
         }
+
+        // applying gravity
+        handleGravity(true);
     }
 
     @SubscribeEvent
@@ -119,7 +118,9 @@ public class GravityHandler {
     private void handleGravity(Boolean client) {
         affectingEntities.asMap().forEach((entity, cache) -> {
             // no gravity sources
-            if (cache.size() < 1 || entity.world.isRemote != client)
+            if (cache.size() < 1
+                    // singleplayer contains both sides
+                    || entity.world.isRemote != client)
                 return;
 
             // detecting current entity gravity
@@ -141,10 +142,6 @@ public class GravityHandler {
 
             double gravityTick = currentGravity * mulitplier;
             entity.motionY += currentGravity - gravityTick;
-
-            if (entity.motionY > 0) {
-                DashCore.log.warn("negative gravity!");
-            }
         });
     }
 

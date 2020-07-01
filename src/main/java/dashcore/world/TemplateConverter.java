@@ -5,6 +5,7 @@ import dashcore.world.interfaces.IChunkStorage;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.*;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ObjectIntIdentityMap;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -18,7 +19,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-public class Template {
+public class TemplateConverter {
     public final ChunkPos chunkPos;
     public final BlockPos size;
     /**
@@ -30,9 +31,13 @@ public class Template {
      */
     private final List<net.minecraft.world.gen.structure.template.Template.EntityInfo> entities = Lists.newArrayList();
 
-    public Template(IChunkStorage chunk) {
+    public TemplateConverter(IChunkStorage chunk) {
         chunk.getBlocks().forEach((pos, state) -> {
-            NBTTagCompound compound = chunk.getTiles().get(pos).serializeNBT();
+            NBTTagCompound compound = null;
+            TileEntity tile = chunk.getTile(pos);
+            if (tile != null) {
+                compound = tile.serializeNBT();
+            }
 
             blocks.add(new net.minecraft.world.gen.structure.template.Template.BlockInfo(pos, state, compound));
         });
