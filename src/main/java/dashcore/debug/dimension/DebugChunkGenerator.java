@@ -2,6 +2,7 @@ package dashcore.debug.dimension;
 
 import dashcore.DashCore;
 import dashcore.structure.NbtLargeStructure;
+import dashcore.util.PositionUtil;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
@@ -32,13 +33,17 @@ public class DebugChunkGenerator extends ChunkGeneratorFlat {
                 new ResourceLocation(DashCore.ModId, "dramix"),
                 5,
                 new ChunkPos(2, 2),
-                chunkPos -> chunkPos.getBlock(0, 15, 0)));
+                chunkPos -> chunkPos.getBlock(0, 15, 0),
+                PositionUtil.getRandomRotation(random))
+        );
 
-        structureGenerators.put("Parasecta", new NbtLargeStructure(worldIn,
-                new ResourceLocation(DashCore.ModId, "parasecta"),
-                5,
-                new ChunkPos(2, 2),
-                chunkPos -> chunkPos.getBlock(0, 30, 0)));
+//        structureGenerators.put("Parasecta", new NbtLargeStructure(worldIn,
+//                new ResourceLocation(DashCore.ModId, "parasecta"),
+//                5,
+//                new ChunkPos(2, 2),
+//                chunkPos -> chunkPos.getBlock(0,30,0),
+//                PositionUtil.getRandomRotation(random))
+//        );
     }
 
     @Override

@@ -1,7 +1,9 @@
 package dashcore.structure;
 
 import dashcore.DashCore;
+import dashcore.util.PositionUtil;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.gen.structure.StructureStart;
@@ -17,7 +19,7 @@ public class NbtStructureStart extends StructureStart {
      * Nbt ctor
      */
     public NbtStructureStart() {
-        this(null, null, BlockPos.ORIGIN, new ChunkPos(0, 0));
+        this(null, null, BlockPos.ORIGIN, Rotation.NONE, new ChunkPos(0, 0));
     }
 
     /**
@@ -28,29 +30,45 @@ public class NbtStructureStart extends StructureStart {
      * @param folder         - folder with nbt files
      * @param manager        - template manager
      * @param structureStart - position of structure. Uses the Y level
+     * @param rotation
      * @param size           - size of structure. First structure part is always at [0,0], and algorithm will check all parts till
-     *                       size
      */
-    public NbtStructureStart(ResourceLocation folder, TemplateManager manager, BlockPos structureStart, ChunkPos size) {
+    public NbtStructureStart(ResourceLocation folder, TemplateManager manager, BlockPos structureStart, Rotation rotation, ChunkPos size) {
         super(structureStart.getX() / 16, structureStart.getZ() / 16);
         this.folder = folder;
         this.manager = manager;
         this.size = size;
 
-        for (int xPos = 0; xPos < size.x; xPos++) {
-            for (int zPos = 0; zPos < size.z; zPos++) {
-                ChunkPos currentChunkPos = new ChunkPos(xPos, zPos);
+        ChunkPos[][] poses = new ChunkPos[size.x][size.z];
 
-                ResourceLocation chunkLocation = new ResourceLocation(folder.getResourceDomain(), folder.getResourcePath() + "/" + currentChunkPos.toString());
-                Template template = manager.getTemplate(null, chunkLocation);
+        for (int i = 0; i < size.x; i++) {
+            for (int j = 0; j < size.z; j++) {
+                poses[i][j] = new ChunkPos(i, j);
+            }
+        }
+
+        poses = PositionUtil.rotate2DGrid(poses, rotation);
+
+        for (int i = 0; i < poses.length; i++) {
+            for (int j = 0; j < poses[i].length; j++) {
+                ResourceLocation templateLocation = new ResourceLocation(folder.getResourceDomain(),
+                        folder.getResourcePath() + "/" + poses[i][j].toString());
+                Template template = manager.getTemplate(null, templateLocation);
 
                 if (template == null || BlockPos.ORIGIN.equals(template.getSize())) {
-                    DashCore.log.warn(String.format("Current structure chunk is null or empty: %s", chunkLocation.toString()));
+                    DashCore.log.warn(String.format("Current structure chunk is null or empty: %s", templateLocation.toString()));
                     continue;
                 }
 
                 // adding chunk to component
-                components.add(new NbtChunkTemplate(manager, chunkLocation, currentChunkPos.getBlock(structureStart.getX(), structureStart.getY(), structureStart.getZ())));
+                components.add(new NbtChunkTemplate(manager,
+                        templateLocation,
+                        rotation,
+                        new ChunkPos(i, j)
+                                .getBlock(structureStart.getX(),
+                                        structureStart.getY(),
+                                        structureStart.getZ())));
+
             }
         }
 

@@ -2,6 +2,7 @@ package dashcore.structure;
 
 import dashcore.DashCore;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
@@ -19,23 +20,27 @@ public class NbtLargeStructure extends MapGenStructure {
     private final Function<ChunkPos, BlockPos> posFunc;
     private final int chunkDistance;
     private final TemplateManager manager;
+    private Function<ChunkPos, Rotation> rotationFunction;
 
     /**
-     * @param world         - current world
-     * @param folder        - folder with nbt files
-     * @param chunkDistance - chunk distance between structure
-     * @param size          - size of structure
-     * @param posFunc       - get position from chunk coords
+     * @param world            - current world
+     * @param folder           - folder with nbt files
+     * @param chunkDistance    - chunk distance between structure
+     * @param size             - size of structure
+     * @param posFunc          - get structure start position from chunk coords. Will use that Y level
+     * @param rotationFunction - get rotation from chunk coords
      */
     public NbtLargeStructure(World world,
                              ResourceLocation folder,
                              int chunkDistance,
                              ChunkPos size,
-                             Function<ChunkPos, BlockPos> posFunc) {
+                             Function<ChunkPos, BlockPos> posFunc,
+                             Function<ChunkPos, Rotation> rotationFunction) {
         this.folder = folder;
         this.size = size;
         this.posFunc = posFunc;
         manager = world.getSaveHandler().getStructureTemplateManager();
+        this.rotationFunction = rotationFunction;
 
         int minSize = Math.max(2, Math.max(size.x, size.z));
 
@@ -91,7 +96,9 @@ public class NbtLargeStructure extends MapGenStructure {
 
     @Override
     protected StructureStart getStructureStart(int chunkX, int chunkZ) {
-        BlockPos position = posFunc.apply(new ChunkPos(chunkX, chunkZ));
-        return new NbtStructureStart(folder, manager, position, size);
+        ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
+        BlockPos position = posFunc.apply(chunkPos);
+        Rotation rotation = rotationFunction.apply(chunkPos);
+        return new NbtStructureStart(folder, manager, position, Rotation.COUNTERCLOCKWISE_90, size);
     }
 }
