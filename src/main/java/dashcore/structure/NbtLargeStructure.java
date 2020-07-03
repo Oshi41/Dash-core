@@ -99,6 +99,6 @@ public class NbtLargeStructure extends MapGenStructure {
         ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
         BlockPos position = posFunc.apply(chunkPos);
         Rotation rotation = rotationFunction.apply(chunkPos);
-        return new NbtStructureStart(folder, manager, position, Rotation.COUNTERCLOCKWISE_90, size);
+        return new NbtStructureStart(folder, manager, position, rotation, size);
     }
 }

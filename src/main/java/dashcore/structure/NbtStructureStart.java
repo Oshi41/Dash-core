@@ -33,7 +33,7 @@ public class NbtStructureStart extends StructureStart {
      * @param rotation
      * @param size           - size of structure. First structure part is always at [0,0], and algorithm will check all parts till
      */
-    public NbtStructureStart(ResourceLocation folder, TemplateManager manager, BlockPos structureStart, Rotation rotation, ChunkPos size) {
+    public NbtStructureStart(ResourceLocation folder, TemplateManager manager, BlockPos structureStart, final Rotation rotation, ChunkPos size) {
         super(structureStart.getX() / 16, structureStart.getZ() / 16);
         this.folder = folder;
         this.manager = manager;
@@ -49,6 +49,11 @@ public class NbtStructureStart extends StructureStart {
 
         poses = PositionUtil.rotate2DGrid(poses, rotation);
 
+        Rotation roomRotation = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90
+                // need to get opposite
+                ? rotation.add(rotation).add(rotation)
+                : rotation;
+
         for (int i = 0; i < poses.length; i++) {
             for (int j = 0; j < poses[i].length; j++) {
                 ResourceLocation templateLocation = new ResourceLocation(folder.getResourceDomain(),
@@ -63,7 +68,7 @@ public class NbtStructureStart extends StructureStart {
                 // adding chunk to component
                 components.add(new NbtChunkTemplate(manager,
                         templateLocation,
-                        rotation,
+                        roomRotation,
                         new ChunkPos(i, j)
                                 .getBlock(structureStart.getX(),
                                         structureStart.getY(),

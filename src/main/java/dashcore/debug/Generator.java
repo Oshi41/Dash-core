@@ -29,9 +29,7 @@ public class Generator extends Item {
         EnumActionResult result = super.onItemUse(p_180614_1_, world, pos, p_180614_4_, p_180614_5_, p_180614_6_, p_180614_7_, p_180614_8_);
 
         if (result != EnumActionResult.FAIL) {
-            if (!world.isRemote) {
-                generateStructure(world, pos.up(10));
-            }
+            generateStructure(world, pos.up(10));
         }
 
         return result;
