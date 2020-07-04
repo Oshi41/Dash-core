@@ -5,10 +5,10 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * This program generates mazes and solves them using Breadth-first Search and
@@ -18,6 +18,14 @@ import java.util.stream.Stream;
  * @author Jasmine Mai
  */
 public class MazeGeneration {
+    private static String clearPath = " ";
+    private static String mazePath = "#";
+    private static String cross = "+";
+    private static String column = "|";
+    private static String row = "-";
+    private static List<EnumFacing> enumFacings = Arrays
+            .stream(EnumFacing.values()).filter(x -> x.getAxis() != EnumFacing.Axis.Y)
+            .collect(Collectors.toList());
 
     /**
      * Generates squeare maze with path from top left to bottom right
@@ -27,120 +35,104 @@ public class MazeGeneration {
      * @return
      */
     public static Map<ChunkPos, RoomInfo> generate(ChunkPos start, int size) {
-        String[][] maze2D = maze2D(size);
-        String[][] generatedMaze = emptyHash(generator(maze2D));
+        int mazeSize = size / 2;
 
-        // Creates an single path of the maze
-        String[][] mazePath = backtrackingDelete(generatedMaze);
-        emptyHash(mazePath);
-        hashList(mazePath);
+        String[][] topLeft = generate(mazeSize, Rotation.NONE);
+        String[][] topRight = generate(mazeSize, Rotation.CLOCKWISE_90);
+        String[][] bottomRight = generate(mazeSize, Rotation.CLOCKWISE_180);
+        String[][] bottomLeft = generate(mazeSize, Rotation.COUNTERCLOCKWISE_90);
 
+        String[][] mainScheme = new String[size * 2 + 1][size * 2 + 1];
 
-        List<RoomInfo> infos = new ArrayList<>();
+        for (int i = 0, iMax = topLeft.length; i < iMax; i++) {
+            String[] row = ArrayUtils.addAll(topLeft[i], Arrays.stream(topRight[i]).skip(1).toArray(String[]::new));
+            mainScheme[i] = row;
 
-        return null;
-    }
+            if (i != 0) {
+                String[] row2 = ArrayUtils.addAll(bottomLeft[i], Arrays.stream(bottomRight[i]).skip(1).toArray(String[]::new));
+                mainScheme[i + iMax - 1] = row2;
+            }
+        }
 
-    public static void main(String[] args) {
-        String[][] maze2D = maze2D(16);
-        String[][] generatedMaze = emptyHash(generator(maze2D));
-
-        // Creates an single path of the maze
-        String[][] mazePath = backtrackingDelete(generatedMaze);
-        emptyHash(mazePath);
-        hashList(mazePath);
-
-        System.out.println(convert2D(mazePath));
-
-        Stream.of(Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90)
-                .forEach(x -> {
-                    List<RoomInfo> infos = convert(mazePath, 16, x);
-                    String[][] maze = convert(infos);
-
-                    System.out.println(convert2D(maze));
-                });
-
-    }
-
-    private static List<RoomInfo> convert(String[][] maze, int size, Rotation rotation) {
-
-        ChunkPos[][] posesArray = new ChunkPos[size][size];
-        Map<ChunkPos, RoomInfo> rooms = new HashMap<>();
-
-        List<EnumFacing> enumFacings = Arrays
-                .stream(EnumFacing.values()).filter(x -> x.getAxis() != EnumFacing.Axis.Y)
-                .collect(Collectors.toList());
+        Map<ChunkPos, RoomInfo> result = new HashMap<>();
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                ChunkPos key = new ChunkPos(i, j);
-                posesArray[i][j] = key;
-
                 // current cell position
                 final BlockPos current = new BlockPos(1 + i * 2, 0, 1 + j * 2);
-
+                // absolute chunk position for cell
+                final ChunkPos roomPos = new ChunkPos(start.x + current.getX(), start.z + current.getZ());
+                // list of entries
                 List<EnumFacing> facings = enumFacings
                         .stream()
                         .filter(x -> {
                             BlockPos offset = current.offset(x);
                             // check wherever there is no wall
-                            return maze[offset.getX()][offset.getZ()] == " ";
+                            return mainScheme[offset.getX()][offset.getZ()] == clearPath;
                         })
                         .collect(Collectors.toList());
 
-                boolean isBoss = i == j && i == size - 1;
-                boolean isPath = maze[current.getX()][current.getZ()] == "#";
+                // is on path to center
+                boolean isPath = mainScheme[current.getX()][current.getZ()] == mazePath;
 
-                rooms.put(key, new RoomInfo(key, facings, isPath, isBoss));
+                boolean isBoss = isPath
+                        && (i == mazeSize || i - 1 == mazeSize)
+                        && (j == mazeSize || j - 1 == mazeSize);
+
+                // TODO fix
+                if (isBoss) {
+                    mainScheme[current.getX()][current.getZ()] = "B";
+                }
+
+                result.put(roomPos, new RoomInfo(roomPos, facings, isPath, isBoss));
             }
         }
 
-        ArrayList<RoomInfo> result = new ArrayList<>();
-
-        posesArray = PositionUtil.rotate2DGrid(posesArray, rotation);
-
-        for (int i = 0; i < posesArray.length; i++) {
-            for (int j = 0; j < posesArray[i].length; j++) {
-                ChunkPos fixedLocation = new ChunkPos(i, j);
-                ChunkPos prevLocation = posesArray[i][j];
-                RoomInfo roomInfo = rooms.get(prevLocation);
-                roomInfo.setChunkPos(fixedLocation);
-
-                result.add(roomInfo);
-            }
-        }
+        System.out.println(start);
+        System.out.println(convert2D(mainScheme));
 
         return result;
     }
 
-    private static String[][] convert(List<RoomInfo> info) {
-        int size = (int) Math.sqrt(info.size());
-        String[][] result = new String[2 * size + 1][2 * size + 1];
+    public static void main(String[] args) {
+        Map<ChunkPos, RoomInfo> rooms = generate(new ChunkPos(0, 0), 16);
+    }
 
-        for (RoomInfo roomInfo : info) {
-            int x = roomInfo.getChunkPos().x * 2 + 1;
-            int z = roomInfo.getChunkPos().z * 2 + 1;
-            BlockPos current = new BlockPos(x, 0, z);
-            result[current.getX()][current.getZ()] = roomInfo.isPathToCenter ? "#" : " ";
+    /**
+     * Creating maze scheme with rotation.
+     * Rotation.NON - top left corner is start, bottom right is end
+     *
+     * @param size     - size of maze
+     * @param rotation - rotation for maze scheme
+     * @return
+     */
+    private static String[][] generate(int size, Rotation rotation) {
+        String[][] emptyMaze = maze2D(size);
+        String[][] generatedMaze = emptyHash(generator(emptyMaze));
 
-            for (int i = -1; i < 2; i += 2) {
-                for (int j = -1; j < 2; j += 2) {
-                    result[x + i][z + j] = "+";
-                }
-            }
+        // Creates an single path of the maze
+        String[][] solvedMaze = backtrackingDelete(generatedMaze);
+        emptyHash(solvedMaze);
+        hashList(solvedMaze);
 
-            for (EnumFacing f : EnumFacing.values()) {
-                if (f.getAxis() != EnumFacing.Axis.Y) {
-                    result[x + f.getFrontOffsetX()][z + f.getFrontOffsetZ()] = roomInfo.entries.contains(f)
-                            ? " "
-                            : f.getAxis() == EnumFacing.Axis.Z
-                            ? "-"
-                            : "|";
+        solvedMaze = PositionUtil.rotate2DGrid(solvedMaze, rotation);
+
+        if (rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90) {
+            for (int i = 0; i < solvedMaze.length; i++) {
+                for (int j = 0; j < solvedMaze[i].length; j++) {
+                    String path = solvedMaze[i][j];
+                    if (path == column) {
+                        path = row;
+                    } else if (path == row) {
+                        path = column;
+                    }
+
+                    solvedMaze[i][j] = path;
                 }
             }
         }
 
-        return result;
+        return solvedMaze;
     }
 
     /**
@@ -149,37 +141,37 @@ public class MazeGeneration {
      * @param maze2D The maze that will be convert to string representation
      * @return maze The string representation of the maze
      */
-    public static String convert2D(String[][] maze2D) {
+    private static String convert2D(String[][] maze2D) {
         String maze = "";
         int size = maze2D.length;
         for (int columnIndex = 0; columnIndex < size; columnIndex++) {
             for (int rowIndex = 0; rowIndex < size; rowIndex++) {
-                if (maze2D[columnIndex][rowIndex] == "+") {
-                    maze = maze + "+";
-                } else if (maze2D[columnIndex][rowIndex] == "-") {
+                if (maze2D[columnIndex][rowIndex] == cross) {
+                    maze = maze + cross;
+                } else if (maze2D[columnIndex][rowIndex] == row) {
                     maze = maze + "---";
-                } else if (maze2D[columnIndex][rowIndex] == "|") {
-                    maze = maze + "|";
-                } else if (maze2D[columnIndex][rowIndex] == "#" && columnIndex % 2 == 1) {
+                } else if (maze2D[columnIndex][rowIndex] == column) {
+                    maze = maze + column;
+                } else if (maze2D[columnIndex][rowIndex] == mazePath && columnIndex % 2 == 1) {
                     // Hash symbol and column is odd
                     if (rowIndex % 2 == 0) {
-                        maze = maze + " ";
+                        maze = maze + mazePath;
                     } else if (rowIndex % 2 == 1) {
-                        maze = maze + "   ";
+                        maze = maze + " " + mazePath + " ";
                     }
-                } else if (maze2D[columnIndex][rowIndex] == "#" && columnIndex % 2 == 0) {
+                } else if (maze2D[columnIndex][rowIndex] == mazePath && columnIndex % 2 == 0) {
                     // Hash symbol and column is even
-                    maze = maze + "   ";
+                    maze = maze + " " + mazePath + " ";
                 } else if (maze2D[columnIndex][rowIndex] == "S" || maze2D[columnIndex][rowIndex] == "E") {
                     maze = maze + "   ";
-                } else if (maze2D[columnIndex][rowIndex] == " " && columnIndex % 2 == 1 && rowIndex % 2 == 0) {
+                } else if (maze2D[columnIndex][rowIndex] == clearPath && columnIndex % 2 == 1 && rowIndex % 2 == 0) {
                     // Spacing for the wall
-                    maze = maze + " ";
-                } else if (maze2D[columnIndex][rowIndex] == " ") {
+                    maze = maze + clearPath;
+                } else if (maze2D[columnIndex][rowIndex] == clearPath) {
                     // Spacing for the cell
                     maze = maze + "   ";
                 } else {
-                    maze = maze + " " + maze2D[columnIndex][rowIndex] + " ";
+                    maze = maze + clearPath + maze2D[columnIndex][rowIndex] + clearPath;
                 }
 
                 // When rowIndex is at end AND columnIndex is not at end, add a new line
@@ -212,16 +204,16 @@ public class MazeGeneration {
                 } else if (rowIndex % 2 == 0) {
                     // Column is even
                     if (columnIndex % 2 == 0) {
-                        maze2D[columnIndex][rowIndex] = "+";
+                        maze2D[columnIndex][rowIndex] = cross;
                         // Column is odd
                     } else {
-                        maze2D[columnIndex][rowIndex] = "|";
+                        maze2D[columnIndex][rowIndex] = column;
                     }
                     // Row is odd
                 } else {
                     // Column is even
                     if (columnIndex % 2 == 0) {
-                        maze2D[columnIndex][rowIndex] = "-";
+                        maze2D[columnIndex][rowIndex] = row;
                         // Column is odd
                     } else {
                         maze2D[columnIndex][rowIndex] = "0";
@@ -301,8 +293,8 @@ public class MazeGeneration {
                 // array");
                 return validSpot(maze2D, current, direction);
             }
-            if ((maze2D[y - 3][x] == "#" || maze2D[y - 1][x] == "#")
-                    || (maze2D[y - 2][x - 1] == "#" || maze2D[y - 2][x + 1] == "#")) {
+            if ((maze2D[y - 3][x] == mazePath || maze2D[y - 1][x] == mazePath)
+                    || (maze2D[y - 2][x - 1] == mazePath || maze2D[y - 2][x + 1] == mazePath)) {
                 // System.out.println("Do not go NORTH because that cell is not enclosed by
                 // walls");
                 return validSpot(maze2D, current, direction);
@@ -313,8 +305,8 @@ public class MazeGeneration {
                 // array");
                 return validSpot(maze2D, current, direction);
             }
-            if (((maze2D[y + 1][x + 2] == "#" || maze2D[y - 1][x + 2] == "#")
-                    || (maze2D[y][x + 1] == "#" || maze2D[y][x + 3] == "#"))) {
+            if (((maze2D[y + 1][x + 2] == mazePath || maze2D[y - 1][x + 2] == mazePath)
+                    || (maze2D[y][x + 1] == mazePath || maze2D[y][x + 3] == mazePath))) {
                 // System.out.println("Do not go EAST because that cell is not enclosed by
                 // walls");
                 return validSpot(maze2D, current, direction);
@@ -325,8 +317,8 @@ public class MazeGeneration {
                 // array");
                 return validSpot(maze2D, current, direction);
             }
-            if (((maze2D[y + 1][x] == "#" || maze2D[y + 3][x] == "#")
-                    || (maze2D[y + 2][x - 1] == "#" || maze2D[y + 2][x + 1] == "#"))) {
+            if (((maze2D[y + 1][x] == mazePath || maze2D[y + 3][x] == mazePath)
+                    || (maze2D[y + 2][x - 1] == mazePath || maze2D[y + 2][x + 1] == mazePath))) {
                 // System.out.println("Do not go SOUTH because that cell is not enclosed by
                 // walls");
                 return validSpot(maze2D, current, direction);
@@ -337,8 +329,8 @@ public class MazeGeneration {
                 // array");
                 return validSpot(maze2D, current, direction);
             }
-            if (((maze2D[y - 1][x - 2] == "#" || maze2D[y + 1][x - 2] == "#")
-                    || (maze2D[y][x - 3] == "#" || maze2D[y][x - 1] == "#"))) {
+            if (((maze2D[y - 1][x - 2] == mazePath || maze2D[y + 1][x - 2] == mazePath)
+                    || (maze2D[y][x - 3] == mazePath || maze2D[y][x - 1] == mazePath))) {
                 // System.out.println("Do not go WEST because that cell is not enclosed by
                 // walls");
                 return validSpot(maze2D, current, direction);
@@ -361,44 +353,44 @@ public class MazeGeneration {
         // System.out.println(" X-coordinate: " + current.getx() + ", Y-coordinate: " +
         // current.gety());
 
-        maze2D[1][1] = "#";
+        maze2D[1][1] = mazePath;
 
         if (random == "NORTH") {
             // NORTH and delete wall from bottom from next cell
             current.setNext(new Cell(current.getx(), current.gety() - 1));
             current = current.getNext();
             // Breaks the bottom wall from next cell
-            maze2D[2 * current.gety() + 2][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 2][2 * current.getx() + 1] = mazePath;
 
             // DEBUGGING: Visualizing
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
         } else if (random == "EAST") {
             // EAST and delete wall from left from next cell
             current.setNext(new Cell(current.getx() + 1, current.gety()));
             current = current.getNext();
             // Breaks the left wall from next cell
-            maze2D[2 * current.gety() + 1][2 * current.getx()] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx()] = mazePath;
 
             // DEBUGGING: Visualizing
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
         } else if (random == "SOUTH") {
             // SOUTH and delete wall from top from next cell
             current.setNext(new Cell(current.getx(), current.gety() + 1));
             current = current.getNext();
             // Breaks the top wall from next cell
-            maze2D[2 * current.gety()][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety()][2 * current.getx() + 1] = mazePath;
 
             // DEBUGGING: Visualizing
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
         } else if (random == "WEST") {
             // WEST and delete wall from right from next cell
             current.setNext(new Cell(current.getx() - 1, current.gety()));
             current = current.getNext();
             // Breaks the right wall from next cell
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 2] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 2] = mazePath;
 
             // DEBUGGING: Visualizing
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
         }
 
         // // DEBUGGING: Printing maze at each step
@@ -422,8 +414,8 @@ public class MazeGeneration {
         int size = maze2D.length;
         for (int columnIndex = 0; columnIndex < size; columnIndex++) {
             for (int rowIndex = 0; rowIndex < size; rowIndex++) {
-                if (maze2D[columnIndex][rowIndex] == "#") {
-                    maze2D[columnIndex][rowIndex] = " ";
+                if (maze2D[columnIndex][rowIndex] == mazePath) {
+                    maze2D[columnIndex][rowIndex] = clearPath;
                 }
             }
 
@@ -446,7 +438,7 @@ public class MazeGeneration {
 
         // When the size of the list is 0, return "BACKTRACK"
         if (direction.size() == 0) {
-            // maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = " ";
+            // maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = clearPath;
             return "BACKTRACK";
         }
 
@@ -458,7 +450,7 @@ public class MazeGeneration {
                 // array");
                 return DFSValid(maze2D, current, direction);
             }
-            if (maze2D[y - 1][x] != " ") {
+            if (maze2D[y - 1][x] != clearPath) {
                 // System.out.println("Do not go NORTH because there is a wall");
                 return DFSValid(maze2D, current, direction);
             }
@@ -468,7 +460,7 @@ public class MazeGeneration {
                 // array");
                 return DFSValid(maze2D, current, direction);
             }
-            if (maze2D[y][x + 1] != " ") {
+            if (maze2D[y][x + 1] != clearPath) {
                 // System.out.println("Do not go EAST because there is a wall");
                 return DFSValid(maze2D, current, direction);
             }
@@ -478,7 +470,7 @@ public class MazeGeneration {
                 // array");
                 return DFSValid(maze2D, current, direction);
             }
-            if (maze2D[y + 1][x] != " ") {
+            if (maze2D[y + 1][x] != clearPath) {
                 // System.out.println("Do not go SOUTH because there is a wall");
                 return DFSValid(maze2D, current, direction);
             }
@@ -488,7 +480,7 @@ public class MazeGeneration {
                 // array");
                 return DFSValid(maze2D, current, direction);
             }
-            if (maze2D[y][x - 1] != " ") {
+            if (maze2D[y][x - 1] != clearPath) {
                 // System.out.println("Do not go WEST because there is a wall");
                 return DFSValid(maze2D, current, direction);
             }
@@ -514,7 +506,7 @@ public class MazeGeneration {
             current.setNext(new Cell(current.getx(), current.gety() - 1));
             current = current.getNext();
             // Breaks the bottom wall from next cell
-            maze2D[2 * current.gety() + 2][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 2][2 * current.getx() + 1] = mazePath;
 
             // DEBUGGING: Visualizing
             maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = path;
@@ -523,7 +515,7 @@ public class MazeGeneration {
             current.setNext(new Cell(current.getx() + 1, current.gety()));
             current = current.getNext();
             // Breaks the left wall from next cell
-            maze2D[2 * current.gety() + 1][2 * current.getx()] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx()] = mazePath;
 
             // DEBUGGING: Visualizing
             maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = path;
@@ -532,7 +524,7 @@ public class MazeGeneration {
             current.setNext(new Cell(current.getx(), current.gety() + 1));
             current = current.getNext();
             // Breaks the top wall from next cell
-            maze2D[2 * current.gety()][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety()][2 * current.getx() + 1] = mazePath;
 
             // DEBUGGING: Visualizing
             maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = path;
@@ -541,7 +533,7 @@ public class MazeGeneration {
             current.setNext(new Cell(current.getx() - 1, current.gety()));
             current = current.getNext();
             // Breaks the right wall from next cell
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 2] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 2] = mazePath;
 
             // DEBUGGING: Visualizing
             maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = path;
@@ -582,7 +574,7 @@ public class MazeGeneration {
             // System.out.println("The FINAL DIRECTION: " + random);
 
             if (random == "BACKTRACK") {
-                maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = " ";
+                maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = clearPath;
                 current = location.pop();
                 continue;
             }
@@ -615,9 +607,9 @@ public class MazeGeneration {
             // NORTH
             if (current.gety() - 1 < 0) {
                 // Do Nothing
-            } else if (maze2D[2 * current.gety()][2 * current.getx() + 1] == " "
-                    && maze2D[2 * current.gety() - 1][2 * current.getx() + 1] != " "
-                    && maze2D[2 * current.gety() - 1][2 * current.getx() + 1] != "#") {
+            } else if (maze2D[2 * current.gety()][2 * current.getx() + 1] == clearPath
+                    && maze2D[2 * current.gety() - 1][2 * current.getx() + 1] != clearPath
+                    && maze2D[2 * current.gety() - 1][2 * current.getx() + 1] != mazePath) {
 
                 path.add(new Cell(current.getx(), current.gety() - 1));
                 current.setNext(new Cell(current.getx(), current.gety() - 1));
@@ -627,9 +619,9 @@ public class MazeGeneration {
             // EAST
             if (current.getx() + 1 >= size) {
                 // Do Nothing
-            } else if (maze2D[2 * current.gety() + 1][2 * current.getx() + 2] == " "
-                    && maze2D[2 * current.gety() + 1][2 * current.getx() + 3] != " "
-                    && maze2D[2 * current.gety() + 1][2 * current.getx() + 3] != "#") {
+            } else if (maze2D[2 * current.gety() + 1][2 * current.getx() + 2] == clearPath
+                    && maze2D[2 * current.gety() + 1][2 * current.getx() + 3] != clearPath
+                    && maze2D[2 * current.gety() + 1][2 * current.getx() + 3] != mazePath) {
 
                 path.add(new Cell(current.getx() + 1, current.gety()));
                 current.setNext(new Cell(current.getx() + 1, current.gety()));
@@ -638,9 +630,9 @@ public class MazeGeneration {
             // SOUTH
             if (current.gety() + 1 >= size) {
                 // Do Nothing
-            } else if (maze2D[2 * current.gety() + 2][2 * current.getx() + 1] == " "
-                    && maze2D[2 * current.gety() + 3][2 * current.getx() + 1] != " "
-                    && maze2D[2 * current.gety() + 3][2 * current.getx() + 1] != "#") {
+            } else if (maze2D[2 * current.gety() + 2][2 * current.getx() + 1] == clearPath
+                    && maze2D[2 * current.gety() + 3][2 * current.getx() + 1] != clearPath
+                    && maze2D[2 * current.gety() + 3][2 * current.getx() + 1] != mazePath) {
 
                 path.add(new Cell(current.getx(), current.gety() + 1));
                 current.setNext(new Cell(current.getx(), current.gety() + 1));
@@ -649,26 +641,26 @@ public class MazeGeneration {
             // WEST
             if (current.getx() - 1 < 0) {
                 // Do Nothing
-            } else if (maze2D[2 * current.gety() + 1][2 * current.getx()] == " "
-                    && maze2D[2 * current.gety() + 1][2 * current.getx() - 1] != " "
-                    && maze2D[2 * current.gety() + 1][2 * current.getx() - 1] != "#") {
+            } else if (maze2D[2 * current.gety() + 1][2 * current.getx()] == clearPath
+                    && maze2D[2 * current.gety() + 1][2 * current.getx() - 1] != clearPath
+                    && maze2D[2 * current.gety() + 1][2 * current.getx() - 1] != mazePath) {
 
                 path.add(new Cell(current.getx() - 1, current.gety()));
                 current.setNext(new Cell(current.getx() - 1, current.gety()));
             }
 
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = "#";
+            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
             current = current.getNext();
         }
 
-        maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = "#";
+        maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
 
         // Deletes all the extra numbers
         for (int columnIndex = 0; columnIndex < maze2D.length; columnIndex++) {
             for (int rowIndex = 0; rowIndex < maze2D.length; rowIndex++) {
-                if (!(maze2D[columnIndex][rowIndex] == "+" || maze2D[columnIndex][rowIndex] == "-"
-                        || maze2D[columnIndex][rowIndex] == "|" || maze2D[columnIndex][rowIndex] == "#")) {
-                    maze2D[columnIndex][rowIndex] = " ";
+                if (!(maze2D[columnIndex][rowIndex] == cross || maze2D[columnIndex][rowIndex] == row
+                        || maze2D[columnIndex][rowIndex] == column || maze2D[columnIndex][rowIndex] == mazePath)) {
+                    maze2D[columnIndex][rowIndex] = clearPath;
                 }
             }
         }
