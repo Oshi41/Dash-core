@@ -1,6 +1,7 @@
 package dashcore.maze.description;
 
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.gen.structure.template.PlacementSettings;
 import net.minecraft.world.gen.structure.template.Template;
 import net.minecraft.world.gen.structure.template.TemplateManager;
 
@@ -21,7 +22,7 @@ public class SimpleRoomDescription implements IRoomDescription {
     }
 
     @Override
-    public Template loadTemplate(TemplateManager manager) {
+    public Template loadTemplate(TemplateManager manager, PlacementSettings settings) {
         return manager.getTemplate(null, templateLocation);
     }
 
