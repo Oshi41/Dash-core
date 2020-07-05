@@ -1,11 +1,13 @@
 package dashcore.maze.algorythm;
 
+import dashcore.DashCore;
 import dashcore.util.PositionUtil;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.logging.log4j.Level;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -77,6 +79,14 @@ public class MazeGeneration {
                         .stream()
                         .filter(x -> {
                             BlockPos offset = current.offset(x);
+
+                            // check bounds
+                            if (current.getX() < 0 || current.getZ() < 0)
+                                return false;
+
+                            if (current.getX() >= mainScheme.length || current.getZ() >= mainScheme.length)
+                                return false;
+
                             // check wherever there is no wall
                             return mainScheme[offset.getX()][offset.getZ()] == clearPath;
                         })
@@ -86,8 +96,8 @@ public class MazeGeneration {
             }
         }
 
-        System.out.println(start);
-        System.out.println(convert2D(mainScheme));
+        DashCore.log.log(Level.DEBUG, start);
+        DashCore.log.log(Level.DEBUG, convert2D(mainScheme));
 
         return result;
     }

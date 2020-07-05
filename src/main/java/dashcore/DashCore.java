@@ -27,10 +27,9 @@ public class DashCore {
     @Mod.Instance
     public static DashCore instance;
 
-    public static org.apache.logging.log4j.Logger log;
+    public static org.apache.logging.log4j.Logger log = LogManager.getLogger();
 
     public DashCore() {
-        log = LogManager.getLogger();
         DebugCore.setup();
     }
 

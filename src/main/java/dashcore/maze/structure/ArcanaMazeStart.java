@@ -16,19 +16,24 @@ public class ArcanaMazeStart extends StructureStart {
 
     }
 
-    public ArcanaMazeStart(TemplateManager manager, int x, int y, int z, int size) {
+    public ArcanaMazeStart(TemplateManager manager, int x, int z, int size) {
         super(x, z);
 
         ChunkPos chunkPos = new ChunkPos(x, z);
-        IRoomDescription[][] maze = RoomRegistry.build(MazeGeneration.generate(chunkPos, size));
 
-        for (int i = 0; i < maze.length; i++) {
-            for (int j = 0; j < maze[i].length; j++) {
-                BlockPos currentChunkPosition = chunkPos.getBlock(i * 16, y, j * 16);
-                IRoomDescription info = maze[i][j];
-                components.add(new ArcanaChunkRoom(currentChunkPosition, info, manager));
+        // can add layer here
+        for (int height = 5; height < 10; height += 16) {
+            IRoomDescription[][] maze = RoomRegistry.build(MazeGeneration.generate(chunkPos, size));
+
+            for (int i = 0; i < maze.length; i++) {
+                for (int j = 0; j < maze[i].length; j++) {
+                    BlockPos currentChunkPosition = chunkPos.getBlock(i * 16, height, j * 16);
+                    IRoomDescription info = maze[i][j];
+                    components.add(new ArcanaChunkRoom(currentChunkPosition, info, manager));
+                }
             }
         }
+
 
         updateBoundingBox();
     }
