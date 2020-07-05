@@ -5,15 +5,17 @@ import net.minecraft.world.gen.structure.template.PlacementSettings;
 import net.minecraft.world.gen.structure.template.Template;
 import net.minecraft.world.gen.structure.template.TemplateManager;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class SimpleRoomDescription implements IRoomDescription {
     private ResourceLocation templateLocation;
     private List<IDoor> doors;
 
-    public SimpleRoomDescription(ResourceLocation templateLocation, List<IDoor> doors) {
+    public SimpleRoomDescription(ResourceLocation templateLocation, IDoor... doors) {
         this.templateLocation = templateLocation;
-        this.doors = doors;
+        this.doors = Arrays.stream(doors).collect(Collectors.toList());
     }
 
     @Override
