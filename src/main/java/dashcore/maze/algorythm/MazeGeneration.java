@@ -1,4 +1,4 @@
-package dashcore.maze;
+package dashcore.maze.algorythm;
 
 import dashcore.util.PositionUtil;
 import net.minecraft.util.EnumFacing;
@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 /**
  * This program generates mazes and solves them using Breadth-first Search and
  * Depth-first Search algorithms
+ * <p>
+ * https://github.com/nattwasm/maze
  *
  * @author Nhat Nguyen
  * @author Jasmine Mai
@@ -34,7 +36,7 @@ public class MazeGeneration {
      * @param size  - size of maze
      * @return
      */
-    public static Map<ChunkPos, RoomInfo> generate(ChunkPos start, int size) {
+    public static RoomInfo[][] generate(ChunkPos start, int size) {
         int mazeSize = size / 2;
 
         String[][] topLeft = generate(mazeSize, Rotation.NONE);
@@ -54,37 +56,33 @@ public class MazeGeneration {
             }
         }
 
-        Map<ChunkPos, RoomInfo> result = new HashMap<>();
+        RoomInfo[][] result = new RoomInfo[size][size];
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 // current cell position
                 final BlockPos current = new BlockPos(1 + i * 2, 0, 1 + j * 2);
                 // absolute chunk position for cell
-                final ChunkPos roomPos = new ChunkPos(start.x + current.getX(), start.z + current.getZ());
+                final ChunkPos roomPos = new ChunkPos(start.x + i, start.z + j);
+
+                // is on path to center
+                boolean isPath = mainScheme[current.getX()][current.getZ()] == mazePath;
+
+                boolean isBoss = isPath
+                        && (i == mazeSize || i + 1 == mazeSize)
+                        && (j == mazeSize || j + 1 == mazeSize);
+
                 // list of entries
-                List<EnumFacing> facings = enumFacings
+                Set<EnumFacing> facings = enumFacings
                         .stream()
                         .filter(x -> {
                             BlockPos offset = current.offset(x);
                             // check wherever there is no wall
                             return mainScheme[offset.getX()][offset.getZ()] == clearPath;
                         })
-                        .collect(Collectors.toList());
+                        .collect(Collectors.toSet());
 
-                // is on path to center
-                boolean isPath = mainScheme[current.getX()][current.getZ()] == mazePath;
-
-                boolean isBoss = isPath
-                        && (i == mazeSize || i - 1 == mazeSize)
-                        && (j == mazeSize || j - 1 == mazeSize);
-
-                // TODO fix
-                if (isBoss) {
-                    mainScheme[current.getX()][current.getZ()] = "B";
-                }
-
-                result.put(roomPos, new RoomInfo(roomPos, facings, isPath, isBoss));
+                result[i][j] = new RoomInfo(roomPos, facings, isPath, isBoss);
             }
         }
 
@@ -92,10 +90,6 @@ public class MazeGeneration {
         System.out.println(convert2D(mainScheme));
 
         return result;
-    }
-
-    public static void main(String[] args) {
-        Map<ChunkPos, RoomInfo> rooms = generate(new ChunkPos(0, 0), 16);
     }
 
     /**
