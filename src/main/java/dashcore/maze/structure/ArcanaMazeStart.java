@@ -29,7 +29,8 @@ public class ArcanaMazeStart extends StructureStart {
                 for (int j = 0; j < maze[i].length; j++) {
                     BlockPos currentChunkPosition = chunkPos.getBlock(i * 16, height, j * 16);
                     IRoomDescription info = maze[i][j];
-                    components.add(new ArcanaChunkRoom(currentChunkPosition, info, manager));
+                    ArcanaChunkRoom room = new ArcanaChunkRoom(currentChunkPosition, info, manager);
+                    components.add(room);
                 }
             }
         }

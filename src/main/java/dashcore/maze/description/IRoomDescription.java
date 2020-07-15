@@ -44,14 +44,20 @@ public interface IRoomDescription extends IConnect {
     default boolean canConnect(IConnect other, EnumFacing facing) {
         if (other instanceof IRoomDescription) {
             List<IDoor> doors = getDoors();
+            // closed room (???)
             if (!doors.isEmpty()) {
 
                 List<IDoor> otherDoors = ((IRoomDescription) other).getDoors();
+                // closed room (???)
                 if (!otherDoors.isEmpty()) {
-                    // check direct connection
+                    // loop through own doors
                     for (IDoor door : doors) {
-                        if (otherDoors.stream().anyMatch(x -> x.canConnect(door, facing)))
-                            return true;
+                        // loop through others doors
+                        for (IDoor otherDoor : otherDoors) {
+                            // check if our door can be connected wth other
+                            if (door.canConnect(otherDoor, facing))
+                                return true;
+                        }
                     }
                 }
             }

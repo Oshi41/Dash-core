@@ -1,10 +1,6 @@
 package dashcore.debug.dimension;
 
-import dashcore.DashCore;
-import dashcore.structure.NbtLargeStructure;
-import dashcore.util.PositionUtil;
-import net.minecraft.init.Blocks;
-import net.minecraft.util.ResourceLocation;
+import dashcore.maze.structure.ArcanaMazeStructure;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
@@ -29,13 +25,15 @@ public class DebugChunkGenerator extends ChunkGeneratorFlat {
         this.worldIn = worldIn;
         this.random = new Random(seed);
 
-        structureGenerators.put("Dramix", new NbtLargeStructure(worldIn,
-                new ResourceLocation(DashCore.ModId, "dramix"),
-                5,
-                new ChunkPos(2, 2),
-                chunkPos -> chunkPos.getBlock(0, 15, 0),
-                PositionUtil.getRandomRotation(random))
-        );
+        structureGenerators.put("ArcanaMaze", new ArcanaMazeStructure(32));
+
+//        structureGenerators.put("Dramix", new NbtLargeStructure(worldIn,
+//                new ResourceLocation(DashCore.ModId, "dramix"),
+//                5,
+//                new ChunkPos(2, 2),
+//                chunkPos -> chunkPos.getBlock(0, 15, 0),
+//                PositionUtil.getRandomRotation(random))
+//        );
 
 //        structureGenerators.put("Parasecta", new NbtLargeStructure(worldIn,
 //                new ResourceLocation(DashCore.ModId, "parasecta"),
@@ -50,16 +48,16 @@ public class DebugChunkGenerator extends ChunkGeneratorFlat {
     public Chunk generateChunk(int chunkX, int chunkZ) {
         ChunkPrimer primer = new ChunkPrimer();
 
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                primer.setBlockState(x, 0, z, Blocks.BEDROCK.getDefaultState());
-                primer.setBlockState(x, 5, z, Blocks.GRASS.getDefaultState());
-
-                for (int y = 1; y < 5; y++) {
-                    primer.setBlockState(x, y, z, Blocks.DIRT.getDefaultState());
-                }
-            }
-        }
+//        for (int x = 0; x < 16; x++) {
+//            for (int z = 0; z < 16; z++) {
+//                primer.setBlockState(x, 0, z, Blocks.BEDROCK.getDefaultState());
+//                primer.setBlockState(x, 5, z, Blocks.GRASS.getDefaultState());
+//
+//                for (int y = 1; y < 5; y++) {
+//                    primer.setBlockState(x, y, z, Blocks.DIRT.getDefaultState());
+//                }
+//            }
+//        }
 
         for (MapGenBase mapgenbase : this.structureGenerators.values()) {
             mapgenbase.generate(worldIn, chunkX, chunkZ, primer);
