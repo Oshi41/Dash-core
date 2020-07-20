@@ -1,83 +1,82 @@
 package dashcore.maze.algorythm;
 
 import com.google.common.annotations.VisibleForTesting;
-import dashcore.DashCore;
+import com.google.common.collect.Lists;
 import dashcore.util.PositionUtil;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.logging.log4j.Level;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * This program generates mazes and solves them using Breadth-first Search and
- * Depth-first Search algorithms
- * <p>
- * https://github.com/nattwasm/maze
- *
- * @author Nhat Nguyen
- * @author Jasmine Mai
- */
-public class MazeGeneration {
+public class MazeScheme {
     private static String clearPath = " ";
     private static String mazePath = "#";
     private static String cross = "+";
     private static String column = "|";
     private static String row = "-";
-    private static List<EnumFacing> enumFacings = Arrays
-            .stream(EnumFacing.values()).filter(x -> x.getAxis() != EnumFacing.Axis.Y)
-            .collect(Collectors.toList());
+    private static String start = "S";
+    private static String end = "E";
+
+    private final Random random;
 
     /**
-     * Generates squeare maze with path from top left to bottom right
-     *
-     * @param start - start of the maze
-     * @param size  - size of maze
-     * @return maze only with even square size
+     * Size of the whole maze
      */
-    public static RoomInfo[][] generate(ChunkPos start, int size) {
-        int mazeSize = (int) Math.floor(size / 2.0);
-        size = mazeSize * 2;
+    private final int mazeSize;
 
-        String[][] topLeft = generate(mazeSize, Rotation.NONE);
-        String[][] topRight = generate(mazeSize, Rotation.CLOCKWISE_90);
-        String[][] bottomRight = generate(mazeSize, Rotation.CLOCKWISE_180);
-        String[][] bottomLeft = generate(mazeSize, Rotation.COUNTERCLOCKWISE_90);
+    private String[][] maze2D;
+    private RoomInfo[][] rooms;
 
-        String[][] mainScheme = new String[size * 2][size * 2];
+    /**
+     * @param size   even number
+     * @param random random for generation
+     */
+    public MazeScheme(int size, Random random) {
+        this.random = random;
 
-        for (int i = 0, iMax = topLeft.length; i < iMax; i++) {
-            String[] row = ArrayUtils.addAll(topLeft[i], Arrays.stream(topRight[i]).skip(1).toArray(String[]::new));
-            mainScheme[i] = row;
-
-            if (i != 0) {
-                String[] row2 = ArrayUtils.addAll(bottomLeft[i], Arrays.stream(bottomRight[i]).skip(1).toArray(String[]::new));
-                mainScheme[i + iMax - 2] = row2;
-            }
+        // fixing size
+        if (size % 2 == 1) {
+            size++;
+        }
+        if (size < 4) {
+            size = 4;
         }
 
-        RoomInfo[][] result = new RoomInfo[size][size];
+        this.mazeSize = size;
 
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
+        // avoiding null ref exceptions
+
+        maze2D = new String[1][1];
+        rooms = new RoomInfo[1][1];
+    }
+
+    static RoomInfo[][] convert(String[][] maze, ChunkPos start) {
+        int mazeSize = (maze.length - 1) / 2;
+        RoomInfo[][] rooms = new RoomInfo[mazeSize][mazeSize];
+
+        List<EnumFacing> horizontalFacings = Arrays
+                .stream(EnumFacing.values()).filter(x -> x.getAxis() != EnumFacing.Axis.Y)
+                .collect(Collectors.toList());
+
+        for (int i = 0; i < mazeSize; i++) {
+            for (int j = 0; j < mazeSize; j++) {
                 // current cell position
                 final BlockPos current = new BlockPos(1 + i * 2, 0, 1 + j * 2);
                 // absolute chunk position for cell
                 final ChunkPos roomPos = new ChunkPos(start.x + i, start.z + j);
 
                 // is on path to center
-                boolean isPath = mainScheme[current.getX()][current.getZ()].equals(mazePath);
+                boolean isPath = maze[current.getX()][current.getZ()].equals(mazePath);
 
                 boolean isBoss = isPath
-                        && (i == mazeSize || i + 1 == mazeSize)
-                        && (j == mazeSize || j + 1 == mazeSize);
+                        && (i == mazeSize - 2 || i == mazeSize - 1)
+                        && (j == mazeSize - 2 || j == mazeSize - 1);
 
                 // list of entries
-                Set<EnumFacing> facings = enumFacings
+                Set<EnumFacing> facings = horizontalFacings
                         .stream()
                         .filter(x -> {
                             BlockPos offset = current.offset(x);
@@ -86,151 +85,57 @@ public class MazeGeneration {
                             if (offset.getX() < 0 || offset.getZ() < 0)
                                 return false;
 
-                            if (offset.getX() >= mainScheme.length || offset.getZ() >= mainScheme.length)
+                            if (offset.getX() >= maze.length || offset.getZ() >= maze.length)
                                 return false;
 
                             // check wherever there is no wall
-                            return mainScheme[offset.getX()][offset.getZ()].equals(clearPath);
+                            return maze[offset.getX()][offset.getZ()].equals(clearPath);
                         })
                         .collect(Collectors.toSet());
 
-                result[i][j] = new RoomInfo(roomPos, facings, isPath, isBoss);
+                rooms[i][j] = new RoomInfo(roomPos, facings, isPath, isBoss);
             }
         }
 
-        DashCore.log.log(Level.DEBUG, start);
-        DashCore.log.log(Level.DEBUG, convert2D(mainScheme));
-
-        return result;
+        return rooms;
     }
 
     /**
-     * Creating maze scheme with rotation.
-     * Rotation.NON - top left corner is start, bottom right is end
+     * Generates 4 possible directions randomly shuffled.
      *
-     * @param size     - size of maze
-     * @param rotation - rotation for maze scheme
+     * @param random
      * @return
      */
-    private static String[][] generate(int size, Rotation rotation) {
-        String[][] solvedMaze = emptyHash(
-                backtrackingDelete(
-                        emptyHash(
-                                generator(
-                                        maze2D(size)))));
-
-        // replacing digits
-        for (int i = 0; i < solvedMaze.length; i++) {
-            for (int j = 0; j < solvedMaze[i].length; j++) {
-                String cell = solvedMaze[i][j];
-
-                for (char c : cell.toCharArray()) {
-                    if (Character.isDigit(c)) {
-                        solvedMaze[i][j] = mazePath;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return rotate(solvedMaze, rotation);
+    static List<String> generateRandomDirections(Random random) {
+        List<String> directions = Lists.newArrayList("NORTH", "EAST", "SOUTH", "WEST");
+        Collections.shuffle(directions, random);
+        return directions;
     }
 
     /**
-     * Perform rotation for string grid
+     * Generates simple maze
      *
-     * @param maze
-     * @param rotation
+     * @param rand     - rand for generation
+     * @param rotation - possible rotation of maze
+     * @param partSize - size of maze
      * @return
      */
     @VisibleForTesting
-    static String[][] rotate(String[][] maze, Rotation rotation) {
-        maze = PositionUtil.rotate2DGrid(maze, rotation);
+    static String[][] generatePart(Random rand, Rotation rotation, int partSize) {
 
-        if (rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90) {
-            for (int i = 0; i < maze.length; i++) {
-                for (int j = 0; j < maze[i].length; j++) {
-                    String path = maze[i][j];
-                    if (path.equals(column)) {
-                        path = row;
-                    } else if (path.equals(row)) {
-                        path = column;
-                    }
-
-                    maze[i][j] = path;
-                }
-            }
-        }
-
-        return maze;
-    }
-
-    /**
-     * Converts 2D array maze to the string representation
-     *
-     * @param maze2D The maze that will be convert to string representation
-     * @return maze The string representation of the maze
-     */
-    @VisibleForTesting
-    static String convert2D(String[][] maze2D) {
-        String maze = "";
-        int size = maze2D.length;
-        for (int columnIndex = 0; columnIndex < size; columnIndex++) {
-            for (int rowIndex = 0; rowIndex < size; rowIndex++) {
-                if (maze2D[columnIndex][rowIndex].equals(cross)) {
-                    maze = maze + cross;
-                } else if (maze2D[columnIndex][rowIndex].equals(row)) {
-                    maze = maze + "---";
-                } else if (maze2D[columnIndex][rowIndex].equals(column)) {
-                    maze = maze + column;
-                } else if (maze2D[columnIndex][rowIndex].equals(mazePath) && columnIndex % 2 == 1) {
-                    // Hash symbol and column is odd
-                    if (rowIndex % 2 == 0) {
-                        maze = maze + mazePath;
-                    } else if (rowIndex % 2 == 1) {
-                        maze = maze + " " + mazePath + " ";
-                    }
-                } else if (maze2D[columnIndex][rowIndex].equals(mazePath) && columnIndex % 2 == 0) {
-                    // Hash symbol and column is even
-                    maze = maze + " " + mazePath + " ";
-                } else if (maze2D[columnIndex][rowIndex].equals("S") || maze2D[columnIndex][rowIndex].equals("E")) {
-                    maze = maze + "   ";
-                } else if (maze2D[columnIndex][rowIndex].equals(clearPath) && columnIndex % 2 == 1 && rowIndex % 2 == 0) {
-                    // Spacing for the wall
-                    maze = maze + clearPath;
-                } else if (maze2D[columnIndex][rowIndex].equals(clearPath)) {
-                    // Spacing for the cell
-                    maze = maze + "   ";
-                } else {
-                    maze = maze + clearPath + maze2D[columnIndex][rowIndex] + clearPath;
-                }
-
-                // When rowIndex is at end AND columnIndex is not at end, add a new line
-                if (rowIndex == (size - 1) && columnIndex != (size - 1)) {
-                    maze = maze + System.lineSeparator();
-                }
-            }
-        }
-        return maze;
-    }
-
-    /**
-     * Creates an empty non-generated maze
-     *
-     * @param size The size of the maze
-     * @return maze2D The empty non-generated maze
-     */
-    private static String[][] maze2D(int size) {
-        String[][] maze2D = new String[2 * size + 1][2 * size + 1];
+        //
+        // Creates new matrix
+        //
+        String[][] maze2D = new String[2 * partSize + 1][2 * partSize + 1];
         // 2D Array
-        for (int columnIndex = 0; columnIndex < (2 * size + 1); columnIndex++) {
-            for (int rowIndex = 0; rowIndex < (2 * size + 1); rowIndex++) {
+        for (int columnIndex = 0; columnIndex < (2 * partSize + 1); columnIndex++) {
+            for (int rowIndex = 0; rowIndex < (2 * partSize + 1); rowIndex++) {
                 // Start of maze
                 if (rowIndex == 1 && columnIndex == 0) {
-                    maze2D[columnIndex][rowIndex] = "S";
+                    maze2D[columnIndex][rowIndex] = start;
                     // End of maze
-                } else if (rowIndex == 2 * size - 1 && columnIndex == 2 * size) {
-                    maze2D[columnIndex][rowIndex] = "E";
+                } else if (rowIndex == 2 * partSize - 1 && columnIndex == 2 * partSize) {
+                    maze2D[columnIndex][rowIndex] = end;
                     // Row is even
                 } else if (rowIndex % 2 == 0) {
                     // Column is even
@@ -253,17 +158,14 @@ public class MazeGeneration {
             }
         }
 
-        return maze2D;
-    }
+        //
+        // End of creating matrix
+        //
 
-    /**
-     * Creates a valid generated maze that has a path from the begining to end
-     *
-     * @param maze2D The empty non-generated maze
-     * @return maze2D The empty generated maze
-     */
-    private static String[][] generator(String[][] maze2D) {
-        Stack<Cell> location = new Stack<Cell>();
+        //
+        // Generating maze
+        //
+        Stack<Cell> location = new Stack<>();
         int size = (maze2D.length - 1) / 2;
         int totalCells = size * size;
         int visitedCells = 1;
@@ -272,15 +174,12 @@ public class MazeGeneration {
         while (visitedCells < totalCells) {
 
             // Generates a unique direction
-            ArrayList<String> direction = new ArrayList<>();
-            Collections.addAll(direction, "NORTH", "EAST", "SOUTH", "WEST");
-            Collections.shuffle(direction);
-
+            List<String> direction = generateRandomDirections(rand);
             String random = validSpot(maze2D, current, direction);
 
             if (random.equals("BACKTRACK")) {
                 // // DEBUGGING: Prints BACKTRACKING
-                // System.out.println("\t PROCESSS: " + random);
+                // System.out.println("\t PROCESSS: " + rand);
 
                 current = location.pop();
                 continue;
@@ -289,6 +188,95 @@ public class MazeGeneration {
             current = move(maze2D, current, random);
             visitedCells = visitedCells + 1;
             location.push(current);
+        }
+
+        //
+        // End of matrix generation
+        //
+
+        // removing hash symbols
+        removeHashSymbol(maze2D, false);
+
+        //
+        // Solving matrix
+        //
+
+        location = new Stack<>();
+        int mazeSize = (maze2D.length - 1) / 2;
+        totalCells = mazeSize * mazeSize;
+        visitedCells = 1;
+        current = new Cell(0, 0);
+        // adding first cell as initial path
+        location.push(current);
+        maze2D[1][1] = "0";
+
+        while (visitedCells < totalCells) {
+            // Generates a unique direction
+            List<String> direction = generateRandomDirections(rand);
+
+            // Finds a valid spot on the 2D array
+            String random = DFSValid(maze2D, current, direction);
+            // System.out.println("The FINAL DIRECTION: " + rand);
+
+            if (random.equals("BACKTRACK")) {
+                maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = clearPath;
+                current = location.pop();
+                continue;
+            }
+
+            current = DFSMove(maze2D, current, random, visitedCells);
+            visitedCells = visitedCells + 1;
+            location.push(current);
+
+            if (current.getx() == mazeSize - 1 && current.gety() == mazeSize - 1) {
+                break;
+            }
+        }
+
+        //
+        // end of solving
+        //
+
+        // removing all but spaces
+        removeHashSymbol(maze2D, true);
+
+        // indicated maze path by hash symbol
+        while (!location.isEmpty()) {
+            Cell cell = location.pop();
+
+            while (cell != null) {
+                maze2D[2 * cell.gety() + 1][2 * cell.getx() + 1] = mazePath;
+                cell = cell.getNext();
+            }
+        }
+
+        // performing final rotation
+        return rotate(maze2D, rotation);
+    }
+
+    /**
+     * Perform maze rotation
+     *
+     * @param rotation
+     * @return
+     */
+    @VisibleForTesting
+    static String[][] rotate(String[][] maze2D, Rotation rotation) {
+        maze2D = PositionUtil.rotate2DGrid(maze2D, rotation);
+
+        if (rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90) {
+            for (int i = 0; i < maze2D.length; i++) {
+                for (int j = 0; j < maze2D[i].length; j++) {
+                    String path = maze2D[i][j];
+                    if (path.equals(column)) {
+                        path = row;
+                    } else if (path.equals(row)) {
+                        path = column;
+                    }
+
+                    maze2D[i][j] = path;
+                }
+            }
         }
 
         return maze2D;
@@ -302,7 +290,7 @@ public class MazeGeneration {
      * @param direction The list of directions
      * @return random The valid random direction
      */
-    private static String validSpot(String[][] maze2D, Cell current, ArrayList<String> direction) {
+    static String validSpot(String[][] maze2D, Cell current, List<String> direction) {
         int size = (maze2D.length - 1) / 2;
 
         int x = 2 * current.getx() + 1;
@@ -378,7 +366,7 @@ public class MazeGeneration {
      * @param random  The valid random direction
      * @return current The new current cell
      */
-    private static Cell move(String[][] maze2D, Cell current, String random) {
+    static Cell move(String[][] maze2D, Cell current, String random) {
 
         // // Prints out the coordinates of the current cell object
         // System.out.println(" X-coordinate: " + current.getx() + ", Y-coordinate: " +
@@ -436,63 +424,23 @@ public class MazeGeneration {
     }
 
     /**
-     * Delete all the hash symbols in the maze
+     * Replacing symbols to space
      *
-     * @param maze2D The maze with hash symbols
-     * @return maze2D The maze with deleted hash symbols
+     * @param maze          - maze (2D array)
+     * @param includeDigits - should replace digits too
      */
-    private static String[][] emptyHash(String[][] maze2D) {
-        int size = maze2D.length;
-        for (int columnIndex = 0; columnIndex < size; columnIndex++) {
-            for (int rowIndex = 0; rowIndex < size; rowIndex++) {
-                if (maze2D[columnIndex][rowIndex].equals(mazePath)) {
-                    maze2D[columnIndex][rowIndex] = clearPath;
+    static void removeHashSymbol(String[][] maze, boolean includeDigits) {
+        for (int i = 0; i < maze.length; i++) {
+            for (int j = 0; j < maze[i].length; j++) {
+                String current = maze[i][j];
+
+                if (current.equals(mazePath)
+                        // maze room is single char string
+                        || (includeDigits && Character.isDigit(current.charAt(0)))) {
+                    maze[i][j] = clearPath;
                 }
             }
-
         }
-        return maze2D;
-    }
-
-    /**
-     * Depth-first Search (DFS)
-     *
-     * @param maze2D The empty generated maze
-     * @return maze2D The DFS generated maze
-     */
-    private static String[][] DFS(String[][] maze2D) {
-        Stack<Cell> location = new Stack<Cell>();
-        int size = (maze2D.length - 1) / 2;
-        int totalCells = size * size;
-        int visitedCells = 1;
-        Cell current = new Cell(0, 0);
-        maze2D[1][1] = "0";
-
-        while (visitedCells < totalCells) {
-            // Generates a unique direction
-            ArrayList<String> direction = new ArrayList<>();
-            Collections.addAll(direction, "NORTH", "EAST", "SOUTH", "WEST");
-            Collections.shuffle(direction);
-
-            // Finds a valid spot on the 2D array
-            String random = DFSValid(maze2D, current, direction);
-            // System.out.println("The FINAL DIRECTION: " + random);
-
-            if (random == "BACKTRACK") {
-                current = location.pop();
-                continue;
-            }
-
-            current = DFSMove(maze2D, current, random, visitedCells);
-            visitedCells = visitedCells + 1;
-            location.push(current);
-
-            if (current.getx() == size - 1 && current.gety() == size - 1) {
-                return maze2D;
-            }
-        }
-
-        return maze2D;
     }
 
     /**
@@ -503,7 +451,7 @@ public class MazeGeneration {
      * @param direction The list of directions
      * @return random The valid random direction
      */
-    private static String DFSValid(String[][] maze2D, Cell current, ArrayList<String> direction) {
+    static String DFSValid(String[][] maze2D, Cell current, List<String> direction) {
         int size = (maze2D.length - 1) / 2;
         int x = 2 * current.getx() + 1;
         int y = 2 * current.gety() + 1;
@@ -569,7 +517,7 @@ public class MazeGeneration {
      * @param count   The number presented in each cell
      * @return current The new current cell
      */
-    private static Cell DFSMove(String[][] maze2D, Cell current, String random, int count) {
+    static Cell DFSMove(String[][] maze2D, Cell current, String random, int count) {
 
         String path = Integer.toString(count % 10);
 
@@ -621,126 +569,120 @@ public class MazeGeneration {
 
     }
 
-    /**
-     * Deletes the numbers from the bracktracking
-     *
-     * @param maze2D The DFS or BFS maze
-     * @return maze2D The maze with a single path
-     */
-    private static String[][] backtrackingDelete(String[][] maze2D) {
-        Stack<Cell> location = new Stack<Cell>();
-        int size = (maze2D.length - 1) / 2;
-        int totalCells = size * size;
-        int visitedCells = 1;
-        Cell current = new Cell(0, 0);
-        maze2D[1][1] = "0";
+    static String toString(String[][] maze2D) {
+        String maze = "";
+        int size = maze2D.length;
+        for (int columnIndex = 0; columnIndex < size; columnIndex++) {
+            for (int rowIndex = 0; rowIndex < size; rowIndex++) {
+                if (maze2D[columnIndex][rowIndex].equals(cross)) {
+                    maze = maze + cross;
+                } else if (maze2D[columnIndex][rowIndex].equals(row)) {
+                    maze = maze + "---";
+                } else if (maze2D[columnIndex][rowIndex].equals(column)) {
+                    maze = maze + column;
+                } else if (maze2D[columnIndex][rowIndex].equals(mazePath) && columnIndex % 2 == 1) {
+                    // Hash symbol and column is odd
+                    if (rowIndex % 2 == 0) {
+                        maze = maze + mazePath;
+                    } else if (rowIndex % 2 == 1) {
+                        maze = maze + " " + mazePath + " ";
+                    }
+                } else if (maze2D[columnIndex][rowIndex].equals(mazePath) && columnIndex % 2 == 0) {
+                    // Hash symbol and column is even
+                    maze = maze + " " + mazePath + " ";
+                } else if (maze2D[columnIndex][rowIndex].equals(start) || maze2D[columnIndex][rowIndex].equals(end)) {
+                    String path = clearPath;
+                    if (columnIndex % 2 == 0) {
+                        path = "   ";
+                    }
+                    maze = maze + path;
+                } else if (maze2D[columnIndex][rowIndex].equals(clearPath) && columnIndex % 2 == 1 && rowIndex % 2 == 0) {
+                    // Spacing for the wall
+                    maze = maze + clearPath;
+                } else if (maze2D[columnIndex][rowIndex].equals(clearPath)) {
+                    // Spacing for the cell
+                    maze = maze + "   ";
+                } else {
+                    maze = maze + clearPath + maze2D[columnIndex][rowIndex] + clearPath;
+                }
 
-        while (visitedCells < totalCells) {
-            // Generates a unique direction
-            ArrayList<String> direction = new ArrayList<>();
-            Collections.addAll(direction, "NORTH", "EAST", "SOUTH", "WEST");
-            Collections.shuffle(direction);
-
-            // Finds a valid spot on the 2D array
-            String random = DFSValid(maze2D, current, direction);
-            // System.out.println("The FINAL DIRECTION: " + random);
-
-            if (random.equals("BACKTRACK")) {
-                maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = clearPath;
-                current = location.pop();
-                continue;
-            }
-
-            current = DFSMove(maze2D, current, random, visitedCells);
-            visitedCells = visitedCells + 1;
-            location.push(current);
-
-            if (current.getx() == size - 1 && current.gety() == size - 1) {
-                return maze2D;
-            }
-        }
-        return maze2D;
-    }
-
-    /**
-     * Delete every other number not on path and convert path to hash
-     *
-     * @param maze2D The maze2D from after process through backtrackingDelete method
-     * @return path The list the cell locations
-     */
-    private static ArrayList<Cell> hashList(String[][] maze2D) {
-        int size = (maze2D.length - 1) / 2;
-        ArrayList<Cell> path = new ArrayList<>();
-        Cell current = new Cell(0, 0);
-        path.add(current);
-
-        while (current.getx() != size - 1 || current.gety() != size - 1) {
-
-            // NORTH
-            if (current.gety() - 1 < 0) {
-                // Do Nothing
-            } else if (maze2D[2 * current.gety()][2 * current.getx() + 1].equals(clearPath)
-                    && !maze2D[2 * current.gety() - 1][2 * current.getx() + 1].equals(clearPath)
-                    && !maze2D[2 * current.gety() - 1][2 * current.getx() + 1].equals(mazePath)) {
-
-                path.add(new Cell(current.getx(), current.gety() - 1));
-                current.setNext(new Cell(current.getx(), current.gety() - 1));
-
-            }
-
-            // EAST
-            if (current.getx() + 1 >= size) {
-                // Do Nothing
-            } else if (maze2D[2 * current.gety() + 1][2 * current.getx() + 2].equals(clearPath)
-                    && !maze2D[2 * current.gety() + 1][2 * current.getx() + 3].equals(clearPath)
-                    && !maze2D[2 * current.gety() + 1][2 * current.getx() + 3].equals(mazePath)) {
-
-                path.add(new Cell(current.getx() + 1, current.gety()));
-                current.setNext(new Cell(current.getx() + 1, current.gety()));
-            }
-
-            // SOUTH
-            if (current.gety() + 1 >= size) {
-                // Do Nothing
-            } else if (maze2D[2 * current.gety() + 2][2 * current.getx() + 1].equals(clearPath)
-                    && !maze2D[2 * current.gety() + 3][2 * current.getx() + 1].equals(clearPath)
-                    && !maze2D[2 * current.gety() + 3][2 * current.getx() + 1].equals(mazePath)) {
-
-                path.add(new Cell(current.getx(), current.gety() + 1));
-                current.setNext(new Cell(current.getx(), current.gety() + 1));
-            }
-
-            // WEST
-            if (current.getx() - 1 < 0) {
-                // Do Nothing
-            } else if (maze2D[2 * current.gety() + 1][2 * current.getx()].equals(clearPath)
-                    && !maze2D[2 * current.gety() + 1][2 * current.getx() - 1].equals(clearPath)
-                    && !maze2D[2 * current.gety() + 1][2 * current.getx() - 1].equals(mazePath)) {
-
-                path.add(new Cell(current.getx() - 1, current.gety()));
-                current.setNext(new Cell(current.getx() - 1, current.gety()));
-            }
-
-            maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
-            current = current.getNext();
-        }
-
-        maze2D[2 * current.gety() + 1][2 * current.getx() + 1] = mazePath;
-
-        // Deletes all the extra numbers
-        for (int columnIndex = 0; columnIndex < maze2D.length; columnIndex++) {
-            for (int rowIndex = 0; rowIndex < maze2D.length; rowIndex++) {
-                if (!(maze2D[columnIndex][rowIndex].equals(cross) || maze2D[columnIndex][rowIndex].equals(row)
-                        || maze2D[columnIndex][rowIndex].equals(column) || maze2D[columnIndex][rowIndex].equals(mazePath))) {
-                    maze2D[columnIndex][rowIndex] = clearPath;
+                // When rowIndex is at end AND columnIndex is not at end, add a new line
+                if (rowIndex == (size - 1) && columnIndex != (size - 1)) {
+                    maze = maze + System.lineSeparator();
                 }
             }
         }
-
-        return path;
+        return maze + "\n";
     }
 
-    static public class Cell {
+    /**
+     * Size of maze
+     *
+     * @return
+     */
+    public int getMazeSize() {
+        return mazeSize;
+    }
+
+    /**
+     * Return generated rooms
+     *
+     * @return
+     */
+    public RoomInfo[][] getRooms() {
+        return rooms;
+    }
+
+    /**
+     * Generates random solved maze
+     *
+     * @return
+     */
+    public MazeScheme generate(ChunkPos start) {
+//        String[][] topLeft = generatePart(random, Rotation.NONE, mazeSize / 2);
+//        String[][] topRight = generatePart(random, Rotation.CLOCKWISE_90, mazeSize / 2);
+//        String[][] bottomRight = generatePart(random, Rotation.CLOCKWISE_180, mazeSize / 2);
+//        String[][] bottomLeft = generatePart(random, Rotation.COUNTERCLOCKWISE_90, mazeSize / 2);
+
+        maze2D = generatePart(random, Rotation.NONE, mazeSize);
+
+//        for (int i = 0; i < topLeft.length; i++) {
+//            for (int j = 0; j < topLeft.length; j++) {
+//                maze2D[i][j] = topLeft[i][j];
+//                maze2D[i][j + mazeSize] = bottomLeft[i][j];
+//                maze2D[i + mazeSize][j] = topRight[i][j];
+//                maze2D[i + mazeSize][j + mazeSize] = bottomRight[i][j];
+//            }
+//        }
+
+        rooms = convert(maze2D, start);
+        return this;
+    }
+
+    /**
+     * Performing maze rotation
+     *
+     * @param rotation
+     * @return
+     */
+    public MazeScheme rotate(Rotation rotation) {
+        maze2D = rotate(maze2D, rotation);
+        ChunkPos start = new ChunkPos(0, 0);
+
+        if (rooms.length > 0 && rooms[0] != null) {
+            start = rooms[0][0].getChunkPos();
+        }
+
+        rooms = convert(maze2D, start);
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return toString(maze2D);
+    }
+
+    static class Cell {
         private Cell node;
         private int x;
         private int y;
@@ -799,5 +741,4 @@ public class MazeGeneration {
             return "[" + x + ":" + y + "]";
         }
     }
-
 }

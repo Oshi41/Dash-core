@@ -34,6 +34,6 @@ public class ArcanaMazeStructure extends MapGenStructure {
 
     @Override
     protected StructureStart getStructureStart(int chunkX, int chunkZ) {
-        return new ArcanaMazeStart(world.getSaveHandler().getStructureTemplateManager(), chunkX, chunkZ, size);
+        return new ArcanaMazeStart(world.getSaveHandler().getStructureTemplateManager(), chunkX, chunkZ, size, world.rand);
     }
 }
